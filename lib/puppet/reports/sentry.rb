@@ -1,5 +1,5 @@
-require 'hiera_puppet'
 require 'puppet'
+require 'yaml'
 
 begin
     require 'rubygems'
@@ -16,6 +16,16 @@ end
 Puppet::Reports.register_report(:sentry) do
     desc = 'Puppet reporter designed to send failed runs to a sentry server'
 
+    config_file = File.join([File.dirname(Puppet.settings[:config]), "sentry.yaml"])
+    unless File.exist?(config_file)
+      raise(Puppet::ParseError, "Sentry report config file #{config_file} missing or not readable")
+    end
+
+    # Check the config contains what we need
+    if not (dsn = YAML.load_file(config_file).dig('sentry', 'dsn'))
+      raise(Puppet::ParseError, "Sentry did not contain a dsn")
+    end
+
     # Process an event
     def process
         # We only care if the run failed
@@ -23,31 +33,24 @@ Puppet::Reports.register_report(:sentry) do
             return
         end
 
-        config = HieraPuppet.lookup('sentry', {}, nil, nil, :priority)
-
-        # Check the config contains what we need
-        if not config[:dsn]
-            raise(Puppet::ParseError, "Sentry did not contain a dsn")
+        if self.respond_to?(:host)
+            @host = self.host
         end
 
-         if self.respond_to?(:host)
-             @host = self.host
-         end
+        if self.respond_to?(:kind)
+            @kind = self.kind
+        end
+        if self.respond_to?(:puppet_version)
+          @puppet_version = self.puppet_version
+        end
 
-         if self.respond_to?(:kind)
-             @kind = self.kind
-         end
-         if self.respond_to?(:puppet_version)
-           @puppet_version = self.puppet_version
-         end
-
-         if self.respond_to?(:status)
-           @status = self.status
-         end
+        if self.respond_to?(:status)
+          @status = self.status
+        end
 
         # Configure raven
         Raven.configure do |config|
-            config.dsn = config[:dsn]
+            config.dsn = dsn
         end
 
         # Get the important looking stuff to sentry
