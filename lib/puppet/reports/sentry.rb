@@ -22,7 +22,7 @@ Puppet::Reports.register_report(:sentry) do
     end
 
     # Check the config contains what we need
-    if not (dsn = YAML.load_file(config_file).dig('sentry', 'dsn'))
+    if not (dsn = YAML.load_file(config_file).try(:[], 'sentry').try(:[], 'dsn'))
       raise(Puppet::ParseError, "Sentry did not contain a dsn")
     end
 
