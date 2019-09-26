@@ -21,14 +21,16 @@ Puppet::Reports.register_report(:sentry) do
       raise(Puppet::ParseError, "Sentry report config file #{config_file} missing or not readable")
     end
 
+    DSN = YAML.load_file(config_file)['sentry']['dsn'] rescue nil
+
     # Check the config contains what we need
-    dsn = YAML.load_file(config_file)['sentry']['dsn'] rescue nil
-    unless dsn
+    unless DSN
       raise(Puppet::ParseError, "Sentry did not contain a dsn")
     end
 
     # Process an event
     def process
+
         # We only care if the run failed
         if self.status != 'failed'
             return
@@ -51,7 +53,7 @@ Puppet::Reports.register_report(:sentry) do
 
         # Configure raven
         Raven.configure do |config|
-            config.dsn = dsn
+            config.dsn = DSN
         end
 
         # Get the important looking stuff to sentry
